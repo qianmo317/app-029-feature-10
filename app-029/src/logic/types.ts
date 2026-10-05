@@ -73,7 +73,7 @@ export interface LedResult {
   psuUnitW: number
 }
 
-export type MaterialKind = 'acrylic' | 'led_module' | 'psu' | 'glue' | 'labor'
+export type MaterialKind = 'panel' | 'led_module' | 'psu' | 'glue' | 'labor'
 
 export interface Material {
   kind: MaterialKind

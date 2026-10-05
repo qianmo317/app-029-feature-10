@@ -33,7 +33,7 @@ const doc = computed(() =>
 )
 const sum = computed(() => (bom.value ? assertBomSum(bom.value) : null))
 const compare = computed(() =>
-  project.value && layout.value && bom.value ? compareMaterials(project.value, layout.value, preset.value, bom.value) : []
+  project.value && layout.value ? compareMaterials(project.value, layout.value, preset.value, { acknowledgeThinStroke: ack.value }) : []
 )
 
 function printNow(): void {
@@ -63,9 +63,9 @@ function toCsv(): void {
 
     <template v-else>
       <div class="row no-print" style="margin-bottom: 12px">
-        <button class="primary" :disabled="bom?.blocked" @click="printNow">打印 / 导出 PDF</button>
-        <button :disabled="bom?.blocked" @click="toExcel">导出 Excel（.xls）</button>
-        <button :disabled="bom?.blocked" @click="toCsv">导出工艺卡（CSV）</button>
+        <button class="primary" :disabled="!bom || bom.blocked || bom.materials.length === 0" @click="printNow">打印 / 导出 PDF</button>
+        <button :disabled="!bom || bom.blocked || bom.materials.length === 0" @click="toExcel">导出 Excel（.xls）</button>
+        <button :disabled="!bom || bom.blocked || bom.materials.length === 0" @click="toCsv">导出工艺卡（CSV）</button>
         <div class="tabs" style="margin: 0 0 0 12px; border: none">
           <button :class="{ active: mode === 'quote' }" @click="mode = 'quote'">报价单</button>
           <button :class="{ active: mode === 'card' }" @click="mode = 'card'">工艺卡</button>
@@ -120,6 +120,9 @@ function toCsv(): void {
                 <td class="num">{{ r.unitPrice }}</td>
                 <td class="num">{{ r.amount }}</td>
               </tr>
+              <tr v-if="doc.rows.length === 0">
+                <td colspan="6" class="muted">当前材质没有可计入的材料条目：请先回到排版页输入文字，不会出空表。</td>
+              </tr>
             </tbody>
             <tfoot>
               <tr>
@@ -138,10 +141,10 @@ function toCsv(): void {
               <tr><th>材质</th><th class="num">面板</th><th class="num">LED+电源</th><th class="num">配件+加工</th><th class="num">合计</th></tr>
             </thead>
             <tbody>
-              <tr v-for="c in compare" :key="c.id">
-                <td>{{ c.name }}</td>
+              <tr v-for="c in compare" :key="c.id" :class="{ 'row-active': c.id === project.panelMaterialId }">
+                <td>{{ c.id === project.panelMaterialId ? '✓ ' : '' }}{{ c.name }}</td>
                 <td class="num">{{ yuan(c.panelCents) }}</td>
-                <td class="num">{{ yuan(c.ledCents + c.psuCents) }}</td>
+                <td class="num">{{ c.useLed ? yuan(c.ledCents + c.psuCents) : '—' }}</td>
                 <td class="num">{{ yuan(c.accessoryCents + c.laborCents) }}</td>
                 <td class="num"><b>{{ yuan(c.totalCents) }}</b></td>
               </tr>
@@ -163,12 +166,14 @@ function toCsv(): void {
             <span class="muted">对齐</span><span>{{ alignLabel(project.layout.settings.align) }}</span>
             <span class="muted">排版</span><span class="mono">{{ doc.layoutText }}</span>
             <span class="muted">LED</span>
-            <span class="mono">
+            <span class="mono" v-if="bom.panelMaterial.useLed">
               布点 {{ bom.led.perimeterTotalMm }}mm · 模组 {{ bom.led.modules }} 只 · 额定 {{ bom.led.ratedW }}W · 电源
               {{ bom.led.suggestedPsu }}
             </span>
-            <span class="muted">亚克力</span>
-            <span class="mono">{{ bom.sheet.spec }} · {{ bom.nesting.sheetCount }} 张 · 利用率 {{ (bom.nesting.utilization * 100).toFixed(1) }}%</span>
+            <span class="mono" v-else>不计（{{ bom.panelMaterial.name }}不发光）</span>
+            <span class="muted">面板下料</span>
+            <span class="mono" v-if="bom.nesting && bom.sheet">{{ bom.sheet.spec }} · {{ bom.nesting.sheetCount }} 张 · 利用率 {{ (bom.nesting.utilization * 100).toFixed(1) }}%</span>
+            <span class="mono" v-else>按面积下料 · 料件外接矩形合计 {{ bom.pieceAreaM2.toFixed(3) }} ㎡</span>
           </div>
 
           <h3 style="margin-top: 12px">字形工艺分析</h3>

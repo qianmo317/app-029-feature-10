@@ -151,45 +151,302 @@
       "name": "亚克力发光字",
       "desc": "乳白亚克力面板 + 内藏 LED 模组，夜间发光",
       "useLed": true,
+      "panelMode": "sheet",
+      "sheetId": "acr-1220x2440x3",
+      "panelSpec": "亚克力板 1220×2440×3mm（透明/乳白）",
+      "panelUnit": "张",
+      "panelRule": { "type": "perSheet", "value": 1, "minQty": 0 },
+      "panelPriceCents": 28000,
       "areaPriceCentsPerM2": 32000,
       "perimeterPriceCentsPerM": 0,
-      "charLaborCents": 3500
+      "charLaborCents": 3500,
+      "consumableLines": [
+        {
+          "id": "glue",
+          "spec": "亚克力专用结构胶 300ml",
+          "unit": "支",
+          "unitPriceCents": 3800,
+          "rule": { "type": "perStrokeBlock", "value": 0.035, "minQty": 1 }
+        },
+        {
+          "id": "screw",
+          "spec": "不锈钢挂件/自攻螺丝（每字 4 套）",
+          "unit": "套",
+          "unitPriceCents": 60,
+          "rule": { "type": "perChar", "value": 4, "minQty": 0 }
+        },
+        {
+          "id": "wire",
+          "spec": "电源线 RVV 2×1.0mm²（按布点长度 0.35m/m）",
+          "unit": "米",
+          "unitPriceCents": 320,
+          "rule": { "type": "perMeterPerimeter", "value": 0.35, "minQty": 0 }
+        },
+        {
+          "id": "sealant",
+          "spec": "中性硅酮密封胶（防水封边）",
+          "unit": "支",
+          "unitPriceCents": 2600,
+          "rule": { "type": "perMeterPerimeter", "value": 0.05, "minQty": 1 }
+        }
+      ],
+      "laborLines": [
+        {
+          "id": "cut",
+          "spec": "面板切割/雕刻（含异形修边）",
+          "unit": "㎡",
+          "unitPriceCents": 18000,
+          "rule": { "type": "perPieceAreaM2", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "ledmount",
+          "spec": "LED 布点安装（打孔/贴片/走线）",
+          "unit": "米",
+          "unitPriceCents": 1500,
+          "rule": { "type": "perMeterPerimeter", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "assemble",
+          "spec": "发光字装配（面板+扣边+接线）",
+          "unit": "字",
+          "unitPriceCents": 3500,
+          "rule": { "type": "perChar", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "psuinstall",
+          "spec": "电源装配与通电老化测试",
+          "unit": "台",
+          "unitPriceCents": 4000,
+          "rule": { "type": "perPsu", "value": 1, "minQty": 0 }
+        }
+      ]
     },
     {
       "id": "titanium",
       "name": "钛金字",
       "desc": "钛金不锈钢板激光切割 + 折边焊接，金属质感不发光",
       "useLed": false,
+      "panelMode": "area",
+      "panelSpec": "钛金不锈钢板（按墨迹外接矩形面积下料）",
+      "panelUnit": "㎡",
+      "panelRule": { "type": "perPieceAreaM2", "value": 1, "minQty": 0 },
+      "panelPriceCents": 95000,
       "areaPriceCentsPerM2": 95000,
       "perimeterPriceCentsPerM": 4500,
-      "charLaborCents": 5500
+      "charLaborCents": 5500,
+      "consumableLines": [
+        {
+          "id": "weldrod",
+          "spec": "氩弧焊丝/氩气/抛光耗材",
+          "unit": "套",
+          "unitPriceCents": 800,
+          "rule": { "type": "perChar", "value": 0.15, "minQty": 1 }
+        },
+        {
+          "id": "screw",
+          "spec": "不锈钢挂件/自攻螺丝（每字 4 套）",
+          "unit": "套",
+          "unitPriceCents": 60,
+          "rule": { "type": "perChar", "value": 4, "minQty": 0 }
+        }
+      ],
+      "laborLines": [
+        {
+          "id": "cut",
+          "spec": "钛金板激光切割",
+          "unit": "㎡",
+          "unitPriceCents": 22000,
+          "rule": { "type": "perPieceAreaM2", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "fold",
+          "spec": "折边/围边焊接（按外轮廓周长）",
+          "unit": "米",
+          "unitPriceCents": 4500,
+          "rule": { "type": "perMeterPerimeter", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "assemble",
+          "spec": "钛金字焊接成型/打磨抛光（按字）",
+          "unit": "字",
+          "unitPriceCents": 5500,
+          "rule": { "type": "perChar", "value": 1, "minQty": 0 }
+        }
+      ]
     },
     {
       "id": "pvc",
       "name": "PVC 字",
       "desc": "PVC 发泡板雕刻字，经济型室内首选",
       "useLed": false,
+      "panelMode": "area",
+      "panelSpec": "PVC 发泡板（按墨迹外接矩形面积下料）",
+      "panelUnit": "㎡",
+      "panelRule": { "type": "perPieceAreaM2", "value": 1, "minQty": 0 },
+      "panelPriceCents": 18000,
       "areaPriceCentsPerM2": 18000,
       "perimeterPriceCentsPerM": 0,
-      "charLaborCents": 1800
+      "charLaborCents": 1800,
+      "consumableLines": [
+        {
+          "id": "glue",
+          "spec": "PVC 专用胶 300ml",
+          "unit": "支",
+          "unitPriceCents": 2200,
+          "rule": { "type": "perStrokeBlock", "value": 0.025, "minQty": 1 }
+        },
+        {
+          "id": "screw",
+          "spec": "不锈钢挂件/自攻螺丝（每字 4 套）",
+          "unit": "套",
+          "unitPriceCents": 60,
+          "rule": { "type": "perChar", "value": 4, "minQty": 0 }
+        }
+      ],
+      "laborLines": [
+        {
+          "id": "cut",
+          "spec": "PVC 板 CNC 雕刻",
+          "unit": "㎡",
+          "unitPriceCents": 9000,
+          "rule": { "type": "perPieceAreaM2", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "assemble",
+          "spec": "PVC 字修边/粘合成型（按字）",
+          "unit": "字",
+          "unitPriceCents": 1800,
+          "rule": { "type": "perChar", "value": 1, "minQty": 0 }
+        }
+      ]
     },
     {
       "id": "film",
       "name": "贴膜字",
       "desc": "户外贴膜刻字，成本最低，适合临时/短期使用",
       "useLed": false,
+      "panelMode": "area",
+      "panelSpec": "户外即时贴膜（按墨迹外接矩形面积下料）",
+      "panelUnit": "㎡",
+      "panelRule": { "type": "perPieceAreaM2", "value": 1, "minQty": 0 },
+      "panelPriceCents": 4500,
       "areaPriceCentsPerM2": 4500,
       "perimeterPriceCentsPerM": 0,
-      "charLaborCents": 1200
+      "charLaborCents": 1200,
+      "consumableLines": [
+        {
+          "id": "tape",
+          "spec": "转移膜/双面胶带（按面积 1.2 ㎡/㎡）",
+          "unit": "米",
+          "unitPriceCents": 180,
+          "rule": { "type": "perPieceAreaM2", "value": 1.2, "minQty": 1 }
+        }
+      ],
+      "laborLines": [
+        {
+          "id": "cut",
+          "spec": "刻字机刻绘/排废",
+          "unit": "㎡",
+          "unitPriceCents": 2600,
+          "rule": { "type": "perPieceAreaM2", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "assemble",
+          "spec": "贴膜字拼版/上门铺贴（按字）",
+          "unit": "字",
+          "unitPriceCents": 1200,
+          "rule": { "type": "perChar", "value": 1, "minQty": 0 }
+        }
+      ]
     },
     {
       "id": "steel_trim",
       "name": "不锈钢边条",
       "desc": "亚克力字 + 不锈钢包边条，发光均匀边线利落",
       "useLed": true,
+      "panelMode": "sheet",
+      "sheetId": "acr-1220x2440x3",
+      "panelSpec": "亚克力板 1220×2440×3mm（透明/乳白）",
+      "panelUnit": "张",
+      "panelRule": { "type": "perSheet", "value": 1, "minQty": 0 },
+      "panelPriceCents": 28000,
       "areaPriceCentsPerM2": 26000,
       "perimeterPriceCentsPerM": 6500,
-      "charLaborCents": 4000
+      "charLaborCents": 4000,
+      "consumableLines": [
+        {
+          "id": "glue",
+          "spec": "亚克力专用结构胶 300ml",
+          "unit": "支",
+          "unitPriceCents": 3800,
+          "rule": { "type": "perStrokeBlock", "value": 0.035, "minQty": 1 }
+        },
+        {
+          "id": "screw",
+          "spec": "不锈钢挂件/自攻螺丝（每字 4 套）",
+          "unit": "套",
+          "unitPriceCents": 60,
+          "rule": { "type": "perChar", "value": 4, "minQty": 0 }
+        },
+        {
+          "id": "wire",
+          "spec": "电源线 RVV 2×1.0mm²（按布点长度 0.35m/m）",
+          "unit": "米",
+          "unitPriceCents": 320,
+          "rule": { "type": "perMeterPerimeter", "value": 0.35, "minQty": 0 }
+        },
+        {
+          "id": "sealant",
+          "spec": "中性硅酮密封胶（防水封边）",
+          "unit": "支",
+          "unitPriceCents": 2600,
+          "rule": { "type": "perMeterPerimeter", "value": 0.05, "minQty": 1 }
+        },
+        {
+          "id": "trim",
+          "spec": "不锈钢包边条 1.0mm（沿全部外轮廓围边，1.05m/m 含损耗）",
+          "unit": "米",
+          "unitPriceCents": 1800,
+          "rule": { "type": "perMeterPerimeter", "value": 1.05, "minQty": 0 }
+        }
+      ],
+      "laborLines": [
+        {
+          "id": "cut",
+          "spec": "面板切割/雕刻（含异形修边）",
+          "unit": "㎡",
+          "unitPriceCents": 18000,
+          "rule": { "type": "perPieceAreaM2", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "edgebend",
+          "spec": "不锈钢围边条折弯/扣边（按外轮廓周长）",
+          "unit": "米",
+          "unitPriceCents": 2500,
+          "rule": { "type": "perMeterPerimeter", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "ledmount",
+          "spec": "LED 布点安装（打孔/贴片/走线）",
+          "unit": "米",
+          "unitPriceCents": 1500,
+          "rule": { "type": "perMeterPerimeter", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "assemble",
+          "spec": "发光字装配（面板+不锈钢扣边+接线）",
+          "unit": "字",
+          "unitPriceCents": 4000,
+          "rule": { "type": "perChar", "value": 1, "minQty": 0 }
+        },
+        {
+          "id": "psuinstall",
+          "spec": "电源装配与通电老化测试",
+          "unit": "台",
+          "unitPriceCents": 4000,
+          "rule": { "type": "perPsu", "value": 1, "minQty": 0 }
+        }
+      ]
     }
   ]
 }

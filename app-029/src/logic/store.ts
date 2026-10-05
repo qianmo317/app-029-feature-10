@@ -4,7 +4,7 @@
  */
 
 import materialsData from '../data/materials.json'
-import type { Preset } from './materials'
+import { normalizePreset, type Preset } from './materials'
 import { defaultProject } from './layout'
 import type { Project } from './types'
 
@@ -96,7 +96,8 @@ function mergePreset(base: Preset, patch: Partial<Preset>): Preset {
   if (patch.consumables) out.consumables = patch.consumables
   if (patch.labor) out.labor = patch.labor
   if (patch.panelMaterials) out.panelMaterials = patch.panelMaterials
-  return out
+  // 规整旧版数据：为只有估算单价的材质补齐按材质真算所需的计量规则
+  return normalizePreset(out)
 }
 
 export function defaultPresetDeep(): Preset {

@@ -180,3 +180,17 @@ function shelfWidthUsed(pieces: PlacedPiece[], shelf: ShelfCut): number {
   }
   return max
 }
+
+/** 同尺寸料件合并计数（不依赖拼版，面积口径材质也可用） */
+export function mergeCutList(pieces: Piece[]): CutItem[] {
+  const cutMap = new Map<string, CutItem>()
+  for (const p of pieces) {
+    const key = `${p.label}|${p.wMm}x${p.hMm}`
+    const hit = cutMap.get(key)
+    if (hit) hit.count++
+    else cutMap.set(key, { label: p.label, wMm: p.wMm, hMm: p.hMm, count: 1 })
+  }
+  const cutList = [...cutMap.values()].map((c) => ({ ...c }))
+  cutList.sort((a, b) => b.wMm * b.hMm - a.wMm * a.hMm || a.label.localeCompare(b.label))
+  return cutList
+}

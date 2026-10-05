@@ -363,18 +363,37 @@ export async function runAcceptance(preset: Preset = defaultPreset): Promise<Acc
     })
   }
 
-  // 多材质对照（供材料页与报价页使用，同时在此校验内部一致性）
+  // 多材质对照：每一行都必须是按该材质自己计量真算出的 BOM（与切换选中后得到的清单一致）
   {
     const p = makeProject('acc9', '广告招牌制作', 300)
     const lay = computeLayout(p.layout, { autoSize: true })
-    const bom = buildBom(p, lay, preset)
-    const cmp = compareMaterials(p, lay, preset, bom)
+    const cmp = compareMaterials(p, lay, preset)
+    const sumsOk = cmp.every((c) => c.totalCents === c.panelCents + c.ledCents + c.psuCents + c.accessoryCents + c.laborCents)
+    // 每一行金额必须等于「把项目真的切到该材质后」buildBom 的合计（不允许估算/比例折算）
+    const rowsEqualReal: string[] = []
+    let realMatch = true
+    for (const c of cmp) {
+      p.panelMaterialId = c.id
+      const real = buildBom(p, lay, preset)
+      const ok = real.totalCents === c.totalCents && real.materials.length === c.bom.materials.length
+      realMatch = realMatch && ok
+      rowsEqualReal.push(`${c.name}：对照行 ¥${(c.totalCents / 100).toFixed(2)} ${ok ? '=' : '≠'} 切换后真算 ¥${(real.totalCents / 100).toFixed(2)}（${real.materials.length} 条）`)
+    }
+    p.panelMaterialId = 'acrylic_led'
+    // 不发光材质不得计 LED/电源
+    const noLedOk = cmp.filter((c) => !c.useLed).every((c) => c.ledCents === 0 && c.psuCents === 0)
     checks.push({
       id: 'A9',
-      title: '多材质成本对照（进阶功能）各行合计 = 各分项之和',
-      pass: cmp.every((c) => c.totalCents === c.panelCents + c.ledCents + c.psuCents + c.accessoryCents + c.laborCents),
-      detail: `${cmp.length} 种材质`,
-      evidence: cmp.map((c) => `${c.name}：面板 ${(c.panelCents / 100).toFixed(2)} + LED ${(c.ledCents / 100).toFixed(2)} + 电源 ${(c.psuCents / 100).toFixed(2)} + 配件 ${(c.accessoryCents / 100).toFixed(2)} + 加工 ${(c.laborCents / 100).toFixed(2)} = ¥${(c.totalCents / 100).toFixed(2)}`)
+      title: '多材质成本对照：各行按各自计量真算（灯/电源/包边/加工各按各的），切换后金额一致',
+      pass: sumsOk && realMatch && noLedOk && cmp.length === preset.panelMaterials.length,
+      detail: `${cmp.length} 种材质；分项合计${sumsOk ? '通过' : '失败'}；逐行真算${realMatch ? '一致' : '不一致'}；不发光材质无 LED/电源`,
+      evidence: [
+        ...cmp.map(
+          (c) =>
+            `${c.name}（${c.useLed ? '发光' : '不发光'}）：面板 ${(c.panelCents / 100).toFixed(2)} + LED ${(c.ledCents / 100).toFixed(2)} + 电源 ${(c.psuCents / 100).toFixed(2)} + 配件 ${(c.accessoryCents / 100).toFixed(2)} + 加工 ${(c.laborCents / 100).toFixed(2)} = ¥${(c.totalCents / 100).toFixed(2)}`
+        ),
+        ...rowsEqualReal
+      ]
     })
   }
 

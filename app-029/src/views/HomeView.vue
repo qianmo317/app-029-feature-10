@@ -3,12 +3,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ensureFont, findFont, listFonts } from '../logic/fontLoader'
 import { computeLayout, mountingLabel, textToItems } from '../logic/layout'
-import { buildBom } from '../logic/materials'
-import { compareMaterials } from '../logic/materials'
+import { buildBom, yuan } from '../logic/materials'
 import { bomGroupLabel } from '../logic/quote'
 import { createProject, deleteProject, duplicateProject, listProjects, loadPreset, loadPrefs, saveProject } from '../logic/store'
 import type { Align, Mounting, Project } from '../logic/types'
-import { yuan } from '../logic/materials'
 
 const router = useRouter()
 const projects = ref<Project[]>([])
@@ -133,9 +131,9 @@ const batchRows = computed(() => {
 const batchTotal = computed(() => {
   const rows = batchRows.value
   return {
-    sheets: rows.reduce((s, r) => s + r.bom.nesting.sheetCount, 0),
-    modules: rows.reduce((s, r) => s + r.bom.led.modules, 0),
-    psus: rows.reduce((s, r) => s + r.bom.led.psuCount, 0),
+    sheets: rows.reduce((s, r) => s + (r.bom.nesting?.sheetCount ?? 0), 0),
+    modules: rows.reduce((s, r) => s + (r.bom.panelMaterial.useLed ? r.bom.led.modules : 0), 0),
+    psus: rows.reduce((s, r) => s + (r.bom.panelMaterial.useLed ? r.bom.led.psuCount : 0), 0),
     cents: rows.reduce((s, r) => s + r.bom.totalCents, 0),
     chars: rows.reduce((s, r) => s + r.project.layout.items.length, 0)
   }
@@ -323,10 +321,10 @@ function applyUnified(): void {
               <td class="num">{{ r.project.layout.items.length }}</td>
               <td class="num">{{ r.layout.sizeMm }}</td>
               <td class="num">{{ r.layout.occupiedW }}</td>
-              <td class="num">{{ r.bom.nesting.sheetCount }} 张</td>
-              <td class="num">{{ r.bom.led.modules }}</td>
-              <td class="num">{{ r.bom.led.psuCount }}</td>
-              <td class="num">{{ (r.bom.nesting.utilization * 100).toFixed(1) }}%</td>
+              <td class="num">{{ r.bom.nesting ? `${r.bom.nesting.sheetCount} 张` : '—' }}</td>
+              <td class="num">{{ r.bom.panelMaterial.useLed ? r.bom.led.modules : '—' }}</td>
+              <td class="num">{{ r.bom.panelMaterial.useLed ? r.bom.led.psuCount : '—' }}</td>
+              <td class="num">{{ r.bom.nesting ? `${(r.bom.nesting.utilization * 100).toFixed(1)}%` : '—' }}</td>
               <td class="num">{{ yuan(r.bom.totalCents) }}</td>
             </tr>
           </tbody>
@@ -346,14 +344,12 @@ function applyUnified(): void {
         </table>
         <ul class="notes" style="margin-top: 8px">
           <li>
-            批量汇总只累加材料条目：{{ bomGroupLabel('acrylic') }}、{{ bomGroupLabel('led_module') }}、{{ bomGroupLabel('psu') }}、{{
+            批量汇总只累加材料条目：{{ bomGroupLabel('panel') }}、{{ bomGroupLabel('led_module') }}、{{ bomGroupLabel('psu') }}、{{
               bomGroupLabel('glue')
-            }}、{{ bomGroupLabel('labor') }}。
+            }}、{{ bomGroupLabel('labor') }}；不发光材质不计 LED 与电源，按面积下料材质不拼版。
           </li>
           <li v-for="r in batchRows" :key="`c${r.project.id}`">
-            {{ r.project.name }}：{{ compareMaterials(r.project, r.layout, preset, r.bom)[0].name }} 方案 ¥{{
-              yuan(compareMaterials(r.project, r.layout, preset, r.bom)[0].totalCents)
-            }}
+            {{ r.project.name }}：{{ r.bom.panelMaterial.name }} 方案 ¥{{ yuan(r.bom.totalCents) }}
           </li>
         </ul>
       </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { defaultPresetDeep, resetPreset, savePreset, loadPreset } from '../logic/store'
-import type { Preset } from '../logic/materials'
+import type { ChargeLineSpec, PanelMaterialSpec, Preset, RuleSpec } from '../logic/materials'
 import { runAcceptance, type AcceptanceReport } from '../logic/selftest'
 import { yuan } from '../logic/materials'
 
@@ -9,8 +9,67 @@ const preset = ref<Preset>(loadPreset())
 const saved = ref('')
 const report = ref<AcceptanceReport | null>(null)
 const running = ref(false)
+/** 展开编辑明细的材质 id */
+const openMaterial = ref<string | null>(null)
 
 const dirty = computed(() => JSON.stringify(preset.value) !== JSON.stringify(loadPreset()))
+
+const RULE_TYPES: Array<RuleSpec['type']> = [
+  'perPieceAreaM2',
+  'perChar',
+  'perMeterPerimeter',
+  'perOutlinePerimeter',
+  'perPsu',
+  'perModule',
+  'perStrokeBlock',
+  'perSheet'
+]
+
+function ruleBasis(t: RuleSpec['type']): string {
+  switch (t) {
+    case 'perPieceAreaM2':
+      return '按料件面积 ㎡'
+    case 'perChar':
+      return '按字数'
+    case 'perMeterPerimeter':
+      return '按外轮廓周长 m'
+    case 'perOutlinePerimeter':
+      return '按描边字周长 m'
+    case 'perPsu':
+      return '按电源台数'
+    case 'perModule':
+      return '按模组只数'
+    case 'perStrokeBlock':
+      return '按笔画块数'
+    case 'perSheet':
+      return '按板数'
+  }
+}
+
+function addLine(list: ChargeLineSpec[], kind: '配件' | '加工'): void {
+  list.push({
+    id: `custom-${Date.now().toString(36)}`,
+    spec: `自定义${kind}（改名称）`,
+    unit: kind === '加工' ? '字' : '套',
+    unitPriceCents: 1000,
+    rule: { type: kind === '加工' ? 'perChar' : 'perChar', value: 1, minQty: 0 }
+  })
+}
+
+function removeLine(list: ChargeLineSpec[], i: number): void {
+  list.splice(i, 1)
+}
+
+/** 切换面板口径：按板↔按面积 时联动默认计量单位与用量规则 */
+function onPanelModeChange(m: PanelMaterialSpec): void {
+  if (m.panelMode === 'sheet') {
+    m.panelUnit = '张'
+    m.panelRule = { type: 'perSheet', value: 1, minQty: 0 }
+  } else {
+    m.panelUnit = '㎡'
+    m.panelRule = { type: 'perPieceAreaM2', value: 1, minQty: 0 }
+  }
+}
 
 function save(): void {
   savePreset(preset.value)
@@ -188,21 +247,107 @@ function removeSheet(i: number): void {
           </tbody>
         </table>
 
-        <h3 style="margin-top: 14px">多材质对照单价</h3>
-        <table>
-          <thead>
-            <tr><th>材质</th><th class="num">元/㎡</th><th class="num">元/米周长</th><th class="num">加工费 元/字</th><th>发光</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="m in preset.panelMaterials" :key="m.id">
-              <td><input type="text" v-model="m.name" style="width: 96px" /></td>
-              <td class="num"><input type="number" v-model.number="m.areaPriceCentsPerM2" step="500" style="width: 88px" /></td>
-              <td class="num"><input type="number" v-model.number="m.perimeterPriceCentsPerM" step="100" style="width: 80px" /></td>
-              <td class="num"><input type="number" v-model.number="m.charLaborCents" step="100" style="width: 80px" /></td>
-              <td><input type="checkbox" v-model="m.useLed" /></td>
-            </tr>
-          </tbody>
-        </table>
+        <h3 style="margin-top: 14px">多材质方案（每种材质各按各的计量真算）</h3>
+        <p class="muted">
+          面板口径、要不要 LED/电源、配件与加工条目都在每种材质内部独立配置；材料页对照与出单直接使用这些规则，不再乘固定比例。
+        </p>
+        <div v-for="m in preset.panelMaterials" :key="m.id" class="card" style="margin-bottom: 10px; padding: 10px 12px">
+          <header style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+            <input type="text" v-model="m.name" style="width: 130px; font-weight: 700" />
+            <label class="muted"><input type="checkbox" v-model="m.useLed" /> 发光（计 LED 与电源）</label>
+            <label class="muted">
+              面板口径
+              <select :value="m.panelMode" @change="m.panelMode = ($event.target as HTMLSelectElement).value as 'sheet' | 'area'; onPanelModeChange(m)">
+                <option value="sheet">按板（拼版计张数）</option>
+                <option value="area">按面积（料件外接矩形 ㎡）</option>
+              </select>
+            </label>
+            <label class="muted" v-if="m.panelMode === 'sheet'">
+              默认板材
+              <select v-model="m.sheetId">
+                <option v-for="s in preset.acrylicSheets" :key="s.id" :value="s.id">{{ s.spec }}</option>
+              </select>
+            </label>
+            <button style="margin-left: auto" @click="openMaterial = openMaterial === m.id ? null : m.id">
+              {{ openMaterial === m.id ? '收起明细' : '编辑配件 / 加工 / 面板规则' }}
+            </button>
+          </header>
+
+          <div v-if="openMaterial === m.id" style="margin-top: 10px">
+            <h4 style="margin: 6px 0">面板材料</h4>
+            <div class="field">
+              <label>规格说明</label>
+              <div class="ctl"><input type="text" v-model="m.panelSpec" style="width: 320px" /></div>
+            </div>
+            <div class="field">
+              <label>计量单位</label>
+              <div class="ctl"><input type="text" v-model="m.panelUnit" style="width: 60px" /></div>
+            </div>
+            <div class="field">
+              <label>单价（分/{{ m.panelUnit }}）</label>
+              <div class="ctl"><input type="number" v-model.number="m.panelPriceCents" step="100" style="width: 100px" /></div>
+            </div>
+            <div class="field" v-if="m.panelMode === 'area'">
+              <label>用量规则</label>
+              <div class="ctl">
+                <select v-model="m.panelRule.type">
+                  <option v-for="t in RULE_TYPES" :key="t" :value="t">{{ ruleBasis(t) }}</option>
+                </select>
+                <span class="muted">系数</span>
+                <input type="number" v-model.number="m.panelRule.value" step="0.05" style="width: 80px" />
+                <span class="muted">起订量</span>
+                <input type="number" v-model.number="m.panelRule.minQty" step="1" style="width: 70px" />
+              </div>
+            </div>
+            <p class="muted" v-else>按板口径：用量 = 分层拼版所需张数（每连通域一件、外接矩形），单价取所选板材单价。</p>
+
+            <h4 style="margin: 10px 0 4px">配件（胶/螺丝/线材/包边条…）</h4>
+            <table>
+              <thead>
+                <tr><th>名称/规格</th><th>计量口径</th><th class="num">系数</th><th class="num">起订</th><th class="num">单价(分)</th><th>单位</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="(l, i) in m.consumableLines" :key="l.id">
+                  <td><input type="text" v-model="l.spec" style="width: 260px" /></td>
+                  <td>
+                    <select v-model="l.rule.type">
+                      <option v-for="t in RULE_TYPES" :key="t" :value="t">{{ ruleBasis(t) }}</option>
+                    </select>
+                  </td>
+                  <td class="num"><input type="number" v-model.number="l.rule.value" step="0.005" style="width: 74px" /></td>
+                  <td class="num"><input type="number" v-model.number="l.rule.minQty" step="1" style="width: 60px" /></td>
+                  <td class="num"><input type="number" v-model.number="l.unitPriceCents" step="10" style="width: 80px" /></td>
+                  <td><input type="text" v-model="l.unit" style="width: 44px" /></td>
+                  <td><button class="danger" @click="removeLine(m.consumableLines, i)">删</button></td>
+                </tr>
+              </tbody>
+            </table>
+            <button style="margin-top: 4px" @click="addLine(m.consumableLines, '配件')">新增配件条目</button>
+
+            <h4 style="margin: 10px 0 4px">加工费</h4>
+            <table>
+              <thead>
+                <tr><th>项目</th><th>计量口径</th><th class="num">系数</th><th class="num">起订</th><th class="num">单价(分)</th><th>单位</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="(l, i) in m.laborLines" :key="l.id">
+                  <td><input type="text" v-model="l.spec" style="width: 260px" /></td>
+                  <td>
+                    <select v-model="l.rule.type">
+                      <option v-for="t in RULE_TYPES" :key="t" :value="t">{{ ruleBasis(t) }}</option>
+                    </select>
+                  </td>
+                  <td class="num"><input type="number" v-model.number="l.rule.value" step="0.05" style="width: 74px" /></td>
+                  <td class="num"><input type="number" v-model.number="l.rule.minQty" step="1" style="width: 60px" /></td>
+                  <td class="num"><input type="number" v-model.number="l.unitPriceCents" step="100" style="width: 80px" /></td>
+                  <td><input type="text" v-model="l.unit" style="width: 44px" /></td>
+                  <td><button class="danger" @click="removeLine(m.laborLines, i)">删</button></td>
+                </tr>
+              </tbody>
+            </table>
+            <button style="margin-top: 4px" @click="addLine(m.laborLines, '加工')">新增加工条目</button>
+          </div>
+        </div>
       </section>
 
       <section class="card">

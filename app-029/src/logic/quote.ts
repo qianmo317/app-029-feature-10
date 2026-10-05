@@ -6,25 +6,12 @@
  */
 
 import type { BomResult, CompareRow } from './materials'
-import { yuan } from './materials'
+import { bomGroupLabel, yuan } from './materials'
 import type { LayoutResult } from './layout'
 import { alignLabel, mountingLabel } from './layout'
 import type { Project } from './types'
 
-export function bomGroupLabel(kind: string): string {
-  switch (kind) {
-    case 'acrylic':
-      return '面板材料'
-    case 'led_module':
-      return 'LED 模组'
-    case 'psu':
-      return '电源'
-    case 'glue':
-      return '胶与配件'
-    default:
-      return '加工费'
-  }
-}
+export { bomGroupLabel }
 
 export interface QuoteDoc {
   title: string
@@ -66,9 +53,15 @@ export function buildQuoteDoc(project: Project, layout: LayoutResult, bom: BomRe
     total: yuan(bom.totalCents),
     notes: [
       `面板材料：${bom.panelMaterial.name}（${bom.panelMaterial.desc}）`,
-      `亚克力拼版：${bom.nesting.sheetCount} 张 ${bom.sheet.spec}，利用率 ${(bom.nesting.utilization * 100).toFixed(1)}%`,
-      `LED：布点长度 ${bom.led.perimeterTotalMm}mm，模组 ${bom.led.modules} 只，额定功率 ${bom.led.ratedW}W，建议电源 ${bom.led.suggestedPsu}`,
-      bom.led.note
+      bom.nesting && bom.sheet
+        ? `板材拼版：${bom.nesting.sheetCount} 张 ${bom.sheet.spec}，利用率 ${(bom.nesting.utilization * 100).toFixed(1)}%`
+        : `面板按面积下料：料件外接矩形合计 ${bom.pieceAreaM2.toFixed(3)} ㎡`,
+      ...(bom.panelMaterial.useLed
+        ? [
+            `LED：布点长度 ${bom.led.perimeterTotalMm}mm，模组 ${bom.led.modules} 只，额定功率 ${bom.led.ratedW}W，建议电源 ${bom.led.suggestedPsu}`,
+            bom.led.note
+          ]
+        : ['该材质不发光：不计 LED 模组与电源'])
     ].filter((s) => !!s),
     footer: '本报价基于当前材料单价，有效期 30 天；含材料与加工费，不含安装与运输。'
   }
@@ -132,6 +125,7 @@ export function exportProcessCardCsv(project: Project, layout: LayoutResult, bom
   const lines: string[] = []
   lines.push('招牌字工艺卡')
   lines.push(`项目,${project.name}`)
+  lines.push(`面板材质,${bom.panelMaterial.name}（${bom.panelMaterial.desc}）`)
   lines.push(`门头,${project.layout.panel.wMm}×${project.layout.panel.hMm}mm 边框${project.layout.panel.frameMm}mm`)
   lines.push(`字体,${fontLabel} 字重${project.layout.settings.weight} 字号${layout.sizeMm}mm`)
   lines.push(`排版,${alignLabel(project.layout.settings.align)} 占宽${layout.occupiedW}mm 占高${layout.occupiedH}mm`)
@@ -149,16 +143,27 @@ export function exportProcessCardCsv(project: Project, layout: LayoutResult, bom
   lines.push('料件,宽mm,高mm,数量')
   for (const c of bom.cutList) lines.push([c.label, c.wMm, c.hMm, c.count].join(','))
   lines.push('')
-  lines.push('LED 与电源')
-  lines.push(`布点长度mm,${bom.led.perimeterTotalMm}`)
-  lines.push(`模组数,${bom.led.modules}`)
-  lines.push(`额定功率W,${bom.led.ratedW}`)
-  lines.push(`建议电源,${bom.led.suggestedPsu}`)
-  lines.push(`说明,${bom.led.note}`)
-  lines.push('')
-  lines.push('亚克力拼版')
-  lines.push(`板材,${bom.sheet.spec}`)
-  lines.push(`板数,${bom.nesting.sheetCount}`)
-  lines.push(`利用率,${(bom.nesting.utilization * 100).toFixed(1)}%`)
+  if (bom.panelMaterial.useLed) {
+    lines.push('LED 与电源')
+    lines.push(`布点长度mm,${bom.led.perimeterTotalMm}`)
+    lines.push(`模组数,${bom.led.modules}`)
+    lines.push(`额定功率W,${bom.led.ratedW}`)
+    lines.push(`建议电源,${bom.led.suggestedPsu}`)
+    lines.push(`说明,${bom.led.note}`)
+    lines.push('')
+  } else {
+    lines.push('该材质不发光：无 LED 与电源工序')
+    lines.push('')
+  }
+  if (bom.nesting && bom.sheet) {
+    lines.push('板材拼版')
+    lines.push(`板材,${bom.sheet.spec}`)
+    lines.push(`板数,${bom.nesting.sheetCount}`)
+    lines.push(`利用率,${(bom.nesting.utilization * 100).toFixed(1)}%`)
+  } else {
+    lines.push('面板下料（按面积）')
+    lines.push('口径,料件外接矩形（每个连通域一件）')
+    lines.push(`料件面积㎡,${bom.pieceAreaM2.toFixed(3)}`)
+  }
   download(`${project.name || '招牌'}工艺卡.csv`, new Blob([`\ufeff${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' }))
 }
