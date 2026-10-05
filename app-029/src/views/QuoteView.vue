@@ -63,9 +63,9 @@ function toCsv(): void {
 
     <template v-else>
       <div class="row no-print" style="margin-bottom: 12px">
-        <button class="primary" :disabled="bom?.blocked" @click="printNow">打印 / 导出 PDF</button>
-        <button :disabled="bom?.blocked" @click="toExcel">导出 Excel（.xls）</button>
-        <button :disabled="bom?.blocked" @click="toCsv">导出工艺卡（CSV）</button>
+        <button class="primary" :disabled="bom?.blocked || bom?.empty" @click="printNow">打印 / 导出 PDF</button>
+        <button :disabled="bom?.blocked || bom?.empty" @click="toExcel">导出 Excel（.xls）</button>
+        <button :disabled="bom?.blocked || bom?.empty" @click="toCsv">导出工艺卡（CSV）</button>
         <div class="tabs" style="margin: 0 0 0 12px; border: none">
           <button :class="{ active: mode === 'quote' }" @click="mode = 'quote'">报价单</button>
           <button :class="{ active: mode === 'card' }" @click="mode = 'card'">工艺卡</button>
@@ -79,7 +79,12 @@ function toCsv(): void {
       </div>
       <div v-else-if="ack" class="banner warn no-print">已确认工艺风险：最细笔画低于工艺下限的字符按加粗/换字体处理后再下单。</div>
 
-      <section v-if="doc && bom && layout" class="card">
+      <div v-if="bom?.empty" class="banner warn no-print">
+        当前方案（{{ bom.panelMaterial.name }}）的材料清单为空：排版中暂无可计入的字。请先到排版页输入文字并等待字体加载，
+        再打印或导出单据；此状态下不会出一张空报价单。
+      </div>
+
+      <section v-if="doc && bom && layout && !bom.empty" class="card">
         <template v-if="mode === 'quote'">
           <header>
             <h1>{{ doc.title }}</h1>
@@ -132,17 +137,21 @@ function toCsv(): void {
           <ul class="notes">
             <li v-for="(n, i) in doc.notes" :key="i">{{ n }}</li>
           </ul>
-          <h3 style="margin-top: 12px">多材质对照（元）</h3>
+          <h3 style="margin-top: 12px">多材质对照（元，各行均按该材质自己的计量真算）</h3>
           <table>
             <thead>
-              <tr><th>材质</th><th class="num">面板</th><th class="num">LED+电源</th><th class="num">配件+加工</th><th class="num">合计</th></tr>
+              <tr>
+                <th>材质</th><th class="num">面板</th><th class="num">灯与电源</th><th class="num">配件</th><th class="num">加工</th>
+                <th class="num">合计</th>
+              </tr>
             </thead>
             <tbody>
-              <tr v-for="c in compare" :key="c.id">
-                <td>{{ c.name }}</td>
+              <tr v-for="c in compare" :key="c.id" :class="{ 'row-active': c.id === project.panelMaterialId }">
+                <td>{{ c.name }}<span v-if="c.id === project.panelMaterialId" class="tag ok" style="margin-left: 6px">当前</span></td>
                 <td class="num">{{ yuan(c.panelCents) }}</td>
                 <td class="num">{{ yuan(c.ledCents + c.psuCents) }}</td>
-                <td class="num">{{ yuan(c.accessoryCents + c.laborCents) }}</td>
+                <td class="num">{{ yuan(c.accessoryCents) }}</td>
+                <td class="num">{{ yuan(c.laborCents) }}</td>
                 <td class="num"><b>{{ yuan(c.totalCents) }}</b></td>
               </tr>
             </tbody>
@@ -162,13 +171,26 @@ function toCsv(): void {
             <span class="muted">字体</span><span>{{ fontLabel }} · 字重 {{ project.layout.settings.weight }} · 字号 {{ layout.sizeMm }}mm</span>
             <span class="muted">对齐</span><span>{{ alignLabel(project.layout.settings.align) }}</span>
             <span class="muted">排版</span><span class="mono">{{ doc.layoutText }}</span>
-            <span class="muted">LED</span>
-            <span class="mono">
-              布点 {{ bom.led.perimeterTotalMm }}mm · 模组 {{ bom.led.modules }} 只 · 额定 {{ bom.led.ratedW }}W · 电源
-              {{ bom.led.suggestedPsu }}
-            </span>
-            <span class="muted">亚克力</span>
-            <span class="mono">{{ bom.sheet.spec }} · {{ bom.nesting.sheetCount }} 张 · 利用率 {{ (bom.nesting.utilization * 100).toFixed(1) }}%</span>
+            <span class="muted">面板材质</span><span>{{ bom.panelMaterial.name }}（{{ bom.panelMaterial.desc }}）</span>
+            <template v-if="bom.panelMaterial.useLed">
+              <span class="muted">LED</span>
+              <span class="mono">
+                布点 {{ bom.led.perimeterTotalMm }}mm · 模组 {{ bom.led.modules }} 只 · 额定 {{ bom.led.ratedW }}W · 电源
+                {{ bom.led.suggestedPsu }}
+              </span>
+            </template>
+            <template v-else>
+              <span class="muted">LED</span><span class="muted">不发光方案，不计 LED 模组与电源</span>
+            </template>
+            <template v-if="bom.sheet && bom.nesting">
+              <span class="muted">面板拼版</span>
+              <span class="mono">{{ bom.sheet.spec }} · {{ bom.nesting.sheetCount }} 张 · 利用率 {{ (bom.nesting.utilization * 100).toFixed(1) }}%</span>
+            </template>
+            <template v-else>
+              <span class="muted">面板计价</span>
+              <span class="mono">按料件面积 {{ bom.pieceAreaM2.toFixed(3) }}㎡ × {{ yuan(bom.panelMaterial.areaPriceCentsPerM2) }} 元/㎡</span>
+            </template>
+            <span class="muted">包边条</span><span>{{ bom.panelMaterial.useTrim ? '含不锈钢包边条（按外轮廓周长计）' : '不含包边条' }}</span>
           </div>
 
           <h3 style="margin-top: 12px">字形工艺分析</h3>

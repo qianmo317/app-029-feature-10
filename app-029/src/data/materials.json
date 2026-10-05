@@ -39,6 +39,24 @@
       "thicknessMm": 5,
       "priceCents": 56000,
       "kerfMm": 3
+    },
+    {
+      "id": "tit-1220x2440",
+      "spec": "钛金不锈钢板 1220×2440×0.8mm",
+      "wMm": 1220,
+      "hMm": 2440,
+      "thicknessMm": 0.8,
+      "priceCents": 220000,
+      "kerfMm": 2
+    },
+    {
+      "id": "pvc-1220x2440x10",
+      "spec": "PVC 发泡板 1220×2440×10mm",
+      "wMm": 1220,
+      "hMm": 2440,
+      "thicknessMm": 10,
+      "priceCents": 9500,
+      "kerfMm": 3
     }
   ],
   "ledModules": [
@@ -143,6 +161,41 @@
       "unit": "台",
       "unitPriceCents": 4000,
       "rule": { "type": "perPsu", "value": 1, "minQty": 0 }
+    },
+    {
+      "id": "laser",
+      "spec": "金属板激光切割（含穿孔/修边）",
+      "unit": "米",
+      "unitPriceCents": 2200,
+      "rule": { "type": "perMeterPerimeter", "value": 1, "minQty": 0 }
+    },
+    {
+      "id": "bendweld",
+      "spec": "钛金字折边焊接打磨",
+      "unit": "字",
+      "unitPriceCents": 5500,
+      "rule": { "type": "perChar", "value": 1, "minQty": 0 }
+    },
+    {
+      "id": "pvccarve",
+      "spec": "PVC 板雕刻（含异形修边）",
+      "unit": "㎡",
+      "unitPriceCents": 8000,
+      "rule": { "type": "perPieceAreaM2", "value": 1, "minQty": 0 }
+    },
+    {
+      "id": "filmplot",
+      "spec": "贴膜刻字（含排废/背胶）",
+      "unit": "字",
+      "unitPriceCents": 1200,
+      "rule": { "type": "perChar", "value": 1, "minQty": 0 }
+    },
+    {
+      "id": "trimfold",
+      "spec": "不锈钢包边条折弯围边装配",
+      "unit": "米",
+      "unitPriceCents": 2800,
+      "rule": { "type": "perMeterPerimeter", "value": 1, "minQty": 0 }
     }
   ],
   "panelMaterials": [
@@ -151,45 +204,75 @@
       "name": "亚克力发光字",
       "desc": "乳白亚克力面板 + 内藏 LED 模组，夜间发光",
       "useLed": true,
+      "usePsu": true,
+      "useTrim": false,
+      "panelBasis": "sheet",
+      "sheetId": "acr-1220x2440x3",
       "areaPriceCentsPerM2": 32000,
       "perimeterPriceCentsPerM": 0,
-      "charLaborCents": 3500
+      "charLaborCents": 0,
+      "consumableRefs": ["glue", "screw", "wire", "sealant"],
+      "laborRefs": ["cut", "ledmount", "assemble", "psuinstall"]
     },
     {
       "id": "titanium",
       "name": "钛金字",
       "desc": "钛金不锈钢板激光切割 + 折边焊接，金属质感不发光",
       "useLed": false,
+      "usePsu": false,
+      "useTrim": false,
+      "panelBasis": "sheet",
+      "sheetId": "tit-1220x2440",
       "areaPriceCentsPerM2": 95000,
-      "perimeterPriceCentsPerM": 4500,
-      "charLaborCents": 5500
+      "perimeterPriceCentsPerM": 0,
+      "charLaborCents": 0,
+      "consumableRefs": ["screw", "sealant"],
+      "laborRefs": ["laser", "bendweld"]
     },
     {
       "id": "pvc",
       "name": "PVC 字",
       "desc": "PVC 发泡板雕刻字，经济型室内首选",
       "useLed": false,
+      "usePsu": false,
+      "useTrim": false,
+      "panelBasis": "sheet",
+      "sheetId": "pvc-1220x2440x10",
       "areaPriceCentsPerM2": 18000,
       "perimeterPriceCentsPerM": 0,
-      "charLaborCents": 1800
+      "charLaborCents": 0,
+      "consumableRefs": ["glue", "screw"],
+      "laborRefs": ["pvccarve"]
     },
     {
       "id": "film",
       "name": "贴膜字",
       "desc": "户外贴膜刻字，成本最低，适合临时/短期使用",
       "useLed": false,
+      "usePsu": false,
+      "useTrim": false,
+      "panelBasis": "area",
+      "sheetId": null,
       "areaPriceCentsPerM2": 4500,
       "perimeterPriceCentsPerM": 0,
-      "charLaborCents": 1200
+      "charLaborCents": 0,
+      "consumableRefs": [],
+      "laborRefs": ["filmplot"]
     },
     {
       "id": "steel_trim",
       "name": "不锈钢边条",
       "desc": "亚克力字 + 不锈钢包边条，发光均匀边线利落",
       "useLed": true,
+      "usePsu": true,
+      "useTrim": true,
+      "panelBasis": "sheet",
+      "sheetId": "acr-1220x2440x5",
       "areaPriceCentsPerM2": 26000,
-      "perimeterPriceCentsPerM": 6500,
-      "charLaborCents": 4000
+      "perimeterPriceCentsPerM": 0,
+      "charLaborCents": 0,
+      "consumableRefs": ["glue", "screw", "wire", "sealant"],
+      "laborRefs": ["cut", "ledmount", "assemble", "psuinstall", "trimfold"]
     }
   ]
 }

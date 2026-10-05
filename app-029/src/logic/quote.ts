@@ -66,9 +66,16 @@ export function buildQuoteDoc(project: Project, layout: LayoutResult, bom: BomRe
     total: yuan(bom.totalCents),
     notes: [
       `面板材料：${bom.panelMaterial.name}（${bom.panelMaterial.desc}）`,
-      `亚克力拼版：${bom.nesting.sheetCount} 张 ${bom.sheet.spec}，利用率 ${(bom.nesting.utilization * 100).toFixed(1)}%`,
-      `LED：布点长度 ${bom.led.perimeterTotalMm}mm，模组 ${bom.led.modules} 只，额定功率 ${bom.led.ratedW}W，建议电源 ${bom.led.suggestedPsu}`,
-      bom.led.note
+      bom.sheet && bom.nesting
+        ? `面板拼版：${bom.nesting.sheetCount} 张 ${bom.sheet.spec}，利用率 ${(bom.nesting.utilization * 100).toFixed(1)}%`
+        : `面板按实际料件面积计价：${bom.pieceAreaM2.toFixed(3)} ㎡ × ${yuan(bom.panelMaterial.areaPriceCentsPerM2)} 元/㎡`,
+      ...(bom.panelMaterial.useLed
+        ? [
+            `LED：布点长度 ${bom.led.perimeterTotalMm}mm，模组 ${bom.led.modules} 只，额定功率 ${bom.led.ratedW}W，建议电源 ${bom.led.suggestedPsu}`,
+            bom.led.note
+          ]
+        : [`${bom.panelMaterial.name}：不发光方案，不计 LED 模组与电源`]),
+      bom.panelMaterial.useTrim ? '含不锈钢包边条（按字外轮廓周长计）' : '不含包边条'
     ].filter((s) => !!s),
     footer: '本报价基于当前材料单价，有效期 30 天；含材料与加工费，不含安装与运输。'
   }
@@ -109,14 +116,16 @@ export function exportQuoteXls(project: Project, layout: LayoutResult, bom: BomR
       )
       .join('\n')}
     <tr><td colspan="5">合计</td><td>${esc(doc.total)}</td></tr>
-    <tr><th colspan="6">多材质成本对照（元）</th></tr>
-    <tr><th>材质</th><th>说明</th><th>面板</th><th>LED+电源</th><th>配件</th><th>合计</th></tr>
+    <tr><td colspan="6">多材质成本对照（各行均按该材质自己的计量真算，元）</th></tr>
+    <tr><th>材质</th><th>说明</th><th>面板</th><th>灯与电源</th><th>配件+加工</th><th>合计</th></tr>
     ${compare
       .map(
         (c) =>
-          `<tr><td>${esc(c.name)}</td><td>${esc(c.desc)}</td><td>${yuan(c.panelCents)}</td><td>${yuan(
-            c.ledCents + c.psuCents
-          )}</td><td>${yuan(c.accessoryCents + c.laborCents)}</td><td>${yuan(c.totalCents)}</td></tr>`
+          `<tr><td>${esc(c.name)}${c.id === project.panelMaterialId ? '（当前）' : ''}</td><td>${esc(c.desc)}</td><td>${yuan(
+            c.panelCents
+          )}</td><td>${yuan(c.ledCents + c.psuCents)}</td><td>${yuan(c.accessoryCents + c.laborCents)}</td><td>${yuan(
+            c.totalCents
+          )}</td></tr>`
       )
       .join('\n')}
     <tr><th colspan="6">工艺说明</th></tr>
@@ -145,20 +154,33 @@ export function exportProcessCardCsv(project: Project, layout: LayoutResult, bom
     )
   }
   lines.push('')
+  lines.push(`面板材质,${bom.panelMaterial.name}（${bom.panelMaterial.desc}）`)
+  if (bom.sheet && bom.nesting) {
+    lines.push('面板拼版')
+    lines.push(`板材,${bom.sheet.spec}`)
+    lines.push(`板数,${bom.nesting.sheetCount}`)
+    lines.push(`利用率,${(bom.nesting.utilization * 100).toFixed(1)}%`)
+  } else {
+    lines.push('面板计价,按实际料件面积（不拼整板）')
+    lines.push(`料件面积㎡,${bom.pieceAreaM2.toFixed(3)}`)
+    lines.push(`单价元每㎡,${yuan(bom.panelMaterial.areaPriceCentsPerM2)}`)
+  }
+  lines.push('')
   lines.push('裁切清单')
   lines.push('料件,宽mm,高mm,数量')
   for (const c of bom.cutList) lines.push([c.label, c.wMm, c.hMm, c.count].join(','))
-  lines.push('')
-  lines.push('LED 与电源')
-  lines.push(`布点长度mm,${bom.led.perimeterTotalMm}`)
-  lines.push(`模组数,${bom.led.modules}`)
-  lines.push(`额定功率W,${bom.led.ratedW}`)
-  lines.push(`建议电源,${bom.led.suggestedPsu}`)
-  lines.push(`说明,${bom.led.note}`)
-  lines.push('')
-  lines.push('亚克力拼版')
-  lines.push(`板材,${bom.sheet.spec}`)
-  lines.push(`板数,${bom.nesting.sheetCount}`)
-  lines.push(`利用率,${(bom.nesting.utilization * 100).toFixed(1)}%`)
+  if (bom.panelMaterial.useLed) {
+    lines.push('')
+    lines.push('LED 与电源')
+    lines.push(`布点长度mm,${bom.led.perimeterTotalMm}`)
+    lines.push(`模组数,${bom.led.modules}`)
+    lines.push(`额定功率W,${bom.led.ratedW}`)
+    lines.push(`建议电源,${bom.led.suggestedPsu}`)
+    lines.push(`说明,${bom.led.note}`)
+  } else {
+    lines.push('')
+    lines.push('LED 与电源,本材质为不发光方案，不计 LED 模组与电源')
+  }
+  if (bom.panelMaterial.useTrim) lines.push('包边条,含不锈钢包边条（按字外轮廓周长计）')
   download(`${project.name || '招牌'}工艺卡.csv`, new Blob([`\ufeff${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' }))
 }

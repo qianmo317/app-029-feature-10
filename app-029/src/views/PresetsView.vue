@@ -52,6 +52,16 @@ function addSheet(): void {
 function removeSheet(i: number): void {
   preset.value.acrylicSheets.splice(i, 1)
 }
+
+/** 勾选/取消某材质采用的配件或加工项 */
+function toggleRef(refs: string[], id: string): void {
+  const i = refs.indexOf(id)
+  if (i >= 0) refs.splice(i, 1)
+  else refs.push(id)
+}
+
+/** 包边条由「包边」开关单独控制，不出现在配件勾选表里 */
+const nonTrimConsumables = computed(() => preset.value.consumables.filter((c) => c.id !== 'trim'))
 </script>
 
 <template>
@@ -188,18 +198,66 @@ function removeSheet(i: number): void {
           </tbody>
         </table>
 
-        <h3 style="margin-top: 14px">多材质对照单价</h3>
+        <h3 style="margin-top: 14px">面板材质（每种材质各按各的计量真算）</h3>
+        <p class="muted" style="margin: 4px 0 8px">
+          灯/电源/包边条决定该项计不计；面板口径为「按板」时按整板张数（先拼版），为「按面积」时按料件面积 × 元/㎡；
+          配件与加工各自勾选采用哪些条目，不再对其它材质乘固定比例。
+        </p>
         <table>
           <thead>
-            <tr><th>材质</th><th class="num">元/㎡</th><th class="num">元/米周长</th><th class="num">加工费 元/字</th><th>发光</th></tr>
+            <tr>
+              <th>材质</th><th>口径</th><th class="num">元/㎡</th><th>板材</th><th>灯</th><th>电源</th><th>包边</th>
+            </tr>
           </thead>
           <tbody>
             <tr v-for="m in preset.panelMaterials" :key="m.id">
-              <td><input type="text" v-model="m.name" style="width: 96px" /></td>
-              <td class="num"><input type="number" v-model.number="m.areaPriceCentsPerM2" step="500" style="width: 88px" /></td>
-              <td class="num"><input type="number" v-model.number="m.perimeterPriceCentsPerM" step="100" style="width: 80px" /></td>
-              <td class="num"><input type="number" v-model.number="m.charLaborCents" step="100" style="width: 80px" /></td>
+              <td><input type="text" v-model="m.name" style="width: 110px" /><br /><input type="text" v-model="m.desc" style="width: 200px; font-size: 12px" /></td>
+              <td>
+                <select v-model="m.panelBasis" style="width: 84px">
+                  <option value="sheet">按板</option>
+                  <option value="area">按面积</option>
+                </select>
+              </td>
+              <td class="num"><input type="number" v-model.number="m.areaPriceCentsPerM2" step="500" style="width: 78px" /></td>
+              <td>
+                <select v-if="m.panelBasis === 'sheet'" v-model="m.sheetId" style="width: 150px">
+                  <option v-for="s in preset.acrylicSheets" :key="s.id" :value="s.id">{{ s.spec }}</option>
+                </select>
+                <span v-else class="muted">不拼整板</span>
+              </td>
               <td><input type="checkbox" v-model="m.useLed" /></td>
+              <td><input type="checkbox" v-model="m.usePsu" :disabled="!m.useLed" /></td>
+              <td><input type="checkbox" v-model="m.useTrim" /></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4 style="margin-top: 10px">每种材质采用的配件（勾选计入；不锈钢包边条由上方「包边」开关控制）</h4>
+        <table>
+          <thead>
+            <tr><th>材质</th><th v-for="c in nonTrimConsumables" :key="c.id">{{ c.spec.replace(/（.*?）/, '') }}</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="m in preset.panelMaterials" :key="`c-${m.id}`">
+              <td>{{ m.name }}</td>
+              <td v-for="c in nonTrimConsumables" :key="c.id" class="center">
+                <input type="checkbox" :checked="m.consumableRefs.includes(c.id)" @change="toggleRef(m.consumableRefs, c.id)" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4 style="margin-top: 10px">每种材质采用的加工项（勾选计入，按各自计量真算）</h4>
+        <table>
+          <thead>
+            <tr><th>材质</th><th v-for="l in preset.labor" :key="l.id">{{ l.spec.replace(/（.*?）/, '') }}</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="m in preset.panelMaterials" :key="`l-${m.id}`">
+              <td>{{ m.name }}</td>
+              <td v-for="l in preset.labor" :key="l.id" class="center">
+                <input type="checkbox" :checked="m.laborRefs.includes(l.id)" @change="toggleRef(m.laborRefs, l.id)" />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -243,3 +301,9 @@ function removeSheet(i: number): void {
     </div>
   </div>
 </template>
+
+<style scoped>
+.center {
+  text-align: center;
+}
+</style>

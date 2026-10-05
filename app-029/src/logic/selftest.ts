@@ -369,12 +369,72 @@ export async function runAcceptance(preset: Preset = defaultPreset): Promise<Acc
     const lay = computeLayout(p.layout, { autoSize: true })
     const bom = buildBom(p, lay, preset)
     const cmp = compareMaterials(p, lay, preset, bom)
+    const sumOk = cmp.every((c) => c.totalCents === c.panelCents + c.ledCents + c.psuCents + c.accessoryCents + c.laborCents)
+    // 每一行都必须等于「直接按该材质真算的完整 BOM」（不再是乘比例估算）
+    const realCalcOk = cmp.every((c) => {
+      const real = buildBom(p, lay, preset, { materialId: c.id })
+      return real.totalCents === c.totalCents && Math.abs(real.buckets.accessoryCents - c.accessoryCents) === 0
+    })
+    const byId = new Map(cmp.map((c) => [c.id, c]))
+    const tit = byId.get('titanium')
+    const film = byId.get('film')
+    const trim = byId.get('steel_trim')
+    const acrylic = byId.get('acrylic_led')
+    // 不发光材质真的不计 LED 与电源；发光材质真的计
+    const nonLedOk = !!tit && tit.ledCents === 0 && tit.psuCents === 0 && !!film && film.ledCents === 0
+    const ledOk = !!acrylic && acrylic.ledCents > 0 && acrylic.psuCents > 0
+    // 不锈钢边条行真的计了包边条；钛金/亚克力行没有包边条
+    const trimOk =
+      !!trim &&
+      trim.bom.materials.some((m) => m.spec.includes('包边条')) &&
+      !!acrylic &&
+      !acrylic.bom.materials.some((m) => m.spec.includes('包边条')) &&
+      !!tit &&
+      !tit.bom.materials.some((m) => m.spec.includes('包边条'))
+    // 加工费各按各的：钛金含激光切割/折边焊接，贴膜含刻字按字计，且都不是按比例折算出来的
+    const laborOk =
+      !!tit &&
+      tit.bom.materials.some((m) => m.kind === 'labor' && m.spec.includes('激光')) &&
+      !!film &&
+      film.bom.materials.some((m) => m.kind === 'labor' && m.spec.includes('贴膜刻字')) &&
+      !!acrylic &&
+      acrylic.bom.materials.some((m) => m.kind === 'labor' && m.spec.includes('LED')) &&
+      !tit.bom.materials.some((m) => m.kind === 'labor' && m.spec.includes('LED'))
+    // 贴膜按面积计价：清单里没有整板行；钛金按板计价：有整板行
+    const basisOk =
+      !!film &&
+      !film.bom.sheet &&
+      film.bom.nesting === null &&
+      film.bom.materials.some((m) => m.kind === 'acrylic' && m.unit === '㎡') &&
+      !!tit &&
+      !!tit.bom.sheet &&
+      tit.bom.materials.some((m) => m.kind === 'acrylic' && m.unit === '张')
+    // 切换选中材质后，原选中行也要按新数据重算：两行差额 = 两材质完整清单差额
+    p.panelMaterialId = 'titanium'
+    const bomT = buildBom(p, lay, preset)
+    const cmpT = compareMaterials(p, lay, preset, bomT)
+    const acrylicAfter = cmpT.find((c) => c.id === 'acrylic_led')
+    const titAfter = cmpT.find((c) => c.id === 'titanium')
+    const reCalcOk =
+      !!acrylicAfter && acrylicAfter.totalCents === acrylic?.totalCents && // 换走后亚克力行金额仍是它自己真算的值
+      !!titAfter && titAfter.totalCents === bomT.totalCents // 新选中行 = 当前实际清单
+    const checks2 = [sumOk, realCalcOk, nonLedOk, ledOk, trimOk, laborOk, basisOk, reCalcOk]
     checks.push({
       id: 'A9',
-      title: '多材质成本对照（进阶功能）各行合计 = 各分项之和',
-      pass: cmp.every((c) => c.totalCents === c.panelCents + c.ledCents + c.psuCents + c.accessoryCents + c.laborCents),
-      detail: `${cmp.length} 种材质`,
-      evidence: cmp.map((c) => `${c.name}：面板 ${(c.panelCents / 100).toFixed(2)} + LED ${(c.ledCents / 100).toFixed(2)} + 电源 ${(c.psuCents / 100).toFixed(2)} + 配件 ${(c.accessoryCents / 100).toFixed(2)} + 加工 ${(c.laborCents / 100).toFixed(2)} = ¥${(c.totalCents / 100).toFixed(2)}`)
+      title:
+        '多材质成本对照：每行都按该材质自己的计量真算完整清单（灯/电源/包边/口径/加工各按各的，不乘比例）；切换后各行同步重算',
+      pass: checks2.every(Boolean),
+      detail: `${cmp.length} 种材质；合计口径/真算一致/灯电源/包边条/加工口径/计价口径/切换重算 = ${checks2.map((x) => (x ? '✓' : '✗')).join('')}`,
+      evidence: cmp.map(
+        (c) =>
+          `${c.name}（${c.bom.panelMaterial.panelBasis === 'sheet' ? '按板' : '按面积'}${c.bom.panelMaterial.useLed ? '+灯' : ''}${
+            c.bom.panelMaterial.useTrim ? '+包边' : ''
+          }）：面板 ${(c.panelCents / 100).toFixed(2)} + 灯与电源 ${((c.ledCents + c.psuCents) / 100).toFixed(2)} + 配件 ${(
+            c.accessoryCents / 100
+          ).toFixed(2)} + 加工 ${(c.laborCents / 100).toFixed(2)} = ¥${(c.totalCents / 100).toFixed(2)}（清单 ${
+            c.bom.materials.length
+          } 条，与直接 buildBom 一致）`
+      )
     })
   }
 

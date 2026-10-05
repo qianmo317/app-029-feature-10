@@ -4,7 +4,7 @@
  */
 
 import materialsData from '../data/materials.json'
-import type { Preset } from './materials'
+import { mergeCatalog, normalizePanelMaterial, type PanelMaterialSpec, type Preset } from './materials'
 import { defaultProject } from './layout'
 import type { Project } from './types'
 
@@ -90,12 +90,22 @@ export function createProject(name: string, panel?: { wMm?: number; hMm?: number
 function mergePreset(base: Preset, patch: Partial<Preset>): Preset {
   const out: Preset = JSON.parse(JSON.stringify(base))
   if (patch.process) out.process = { ...out.process, ...patch.process }
-  if (patch.acrylicSheets) out.acrylicSheets = patch.acrylicSheets
-  if (patch.ledModules) out.ledModules = patch.ledModules
+  // 目录类数据按 id 合并：保留用户改过的单价/规格，同时补全新版本新增条目
+  out.acrylicSheets = mergeCatalog(base.acrylicSheets, patch.acrylicSheets)
+  out.ledModules = mergeCatalog(base.ledModules, patch.ledModules)
   if (patch.psu) out.psu = { ...out.psu, ...patch.psu }
-  if (patch.consumables) out.consumables = patch.consumables
-  if (patch.labor) out.labor = patch.labor
-  if (patch.panelMaterials) out.panelMaterials = patch.panelMaterials
+  out.consumables = mergeCatalog(base.consumables, patch.consumables)
+  out.labor = mergeCatalog(base.labor, patch.labor)
+  // 材质按出厂默认补全新增字段（usePsu/useTrim/panelBasis/refs 等），并保留旧存档里的自定义材质
+  const savedPm = patch.panelMaterials ?? []
+  out.panelMaterials = base.panelMaterials.map((pm) =>
+    normalizePanelMaterial(savedPm.find((x) => x.id === pm.id), pm)
+  )
+  for (const pm of savedPm) {
+    if (!base.panelMaterials.some((x) => x.id === pm.id)) {
+      out.panelMaterials.push(normalizePanelMaterial(pm, { ...pm } as PanelMaterialSpec))
+    }
+  }
   return out
 }
 

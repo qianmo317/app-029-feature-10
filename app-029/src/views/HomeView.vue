@@ -133,13 +133,21 @@ const batchRows = computed(() => {
 const batchTotal = computed(() => {
   const rows = batchRows.value
   return {
-    sheets: rows.reduce((s, r) => s + r.bom.nesting.sheetCount, 0),
-    modules: rows.reduce((s, r) => s + r.bom.led.modules, 0),
-    psus: rows.reduce((s, r) => s + r.bom.led.psuCount, 0),
+    sheets: rows.reduce((s, r) => s + (r.bom.nesting?.sheetCount ?? 0), 0),
+    modules: rows.reduce((s, r) => s + (r.bom.panelMaterial.useLed ? r.bom.led.modules : 0), 0),
+    psus: rows.reduce((s, r) => s + (r.bom.panelMaterial.useLed ? r.bom.led.psuCount : 0), 0),
     cents: rows.reduce((s, r) => s + r.bom.totalCents, 0),
     chars: rows.reduce((s, r) => s + r.project.layout.items.length, 0)
   }
 })
+
+/** 每个项目当前选中材质的对照行 */
+function activeCompare(r: { project: Project; layout: ReturnType<typeof computeLayout>; bom: ReturnType<typeof buildBom> }) {
+  return (
+    compareMaterials(r.project, r.layout, preset.value, r.bom).find((c) => c.id === r.project.panelMaterialId) ??
+    compareMaterials(r.project, r.layout, preset.value, r.bom)[0]
+  )
+}
 
 function applyUnified(): void {
   const unify = {
@@ -323,10 +331,10 @@ function applyUnified(): void {
               <td class="num">{{ r.project.layout.items.length }}</td>
               <td class="num">{{ r.layout.sizeMm }}</td>
               <td class="num">{{ r.layout.occupiedW }}</td>
-              <td class="num">{{ r.bom.nesting.sheetCount }} 张</td>
-              <td class="num">{{ r.bom.led.modules }}</td>
-              <td class="num">{{ r.bom.led.psuCount }}</td>
-              <td class="num">{{ (r.bom.nesting.utilization * 100).toFixed(1) }}%</td>
+              <td class="num">{{ r.bom.nesting ? `${r.bom.nesting.sheetCount} 张` : '按面积' }}</td>
+              <td class="num">{{ r.bom.panelMaterial.useLed ? r.bom.led.modules : '—' }}</td>
+              <td class="num">{{ r.bom.panelMaterial.useLed ? r.bom.led.psuCount : '—' }}</td>
+              <td class="num">{{ r.bom.nesting ? `${(r.bom.nesting.utilization * 100).toFixed(1)}%` : '—' }}</td>
               <td class="num">{{ yuan(r.bom.totalCents) }}</td>
             </tr>
           </tbody>
@@ -351,9 +359,7 @@ function applyUnified(): void {
             }}、{{ bomGroupLabel('labor') }}。
           </li>
           <li v-for="r in batchRows" :key="`c${r.project.id}`">
-            {{ r.project.name }}：{{ compareMaterials(r.project, r.layout, preset, r.bom)[0].name }} 方案 ¥{{
-              yuan(compareMaterials(r.project, r.layout, preset, r.bom)[0].totalCents)
-            }}
+            {{ r.project.name }}：{{ activeCompare(r).name }} 方案 ¥{{ yuan(activeCompare(r).totalCents) }}
           </li>
         </ul>
       </template>
